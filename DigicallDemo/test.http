@@ -1,0 +1,11 @@
+GET http://localhost:5223/api/Clients
+###
+POST http://localhost:5223/api/Clients
+Content-Type: application/json
+
+{
+  "name": "Digicall Test Client",
+  "email": "finance@digicall.co.za",
+  "phone": "011 123 4567",
+  "company": "Digicall"
+}

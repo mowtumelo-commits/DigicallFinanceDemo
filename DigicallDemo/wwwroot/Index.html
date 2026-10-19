@@ -1,0 +1,129 @@
+﻿<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Digicall Finance</title>
+    <style>
+        body {
+            font-family: Segoe UI;
+            padding: 15px;
+            background: #f5f7fb
+        }
+
+        .card {
+            background: white;
+            padding: 20px;
+            border-radius: 12px;
+            max-width: 1100px;
+            margin: auto;
+            box-shadow: 0 4px 12px rgba(0,0,0,.1)
+        }
+
+        .tab {
+            padding: 10px 20px;
+            cursor: pointer;
+            border: none;
+            background: #e9ecef;
+            margin-right: 5px;
+            border-radius: 8px 8px 0 0
+        }
+
+            .tab.active {
+                background: #0d6efd;
+                color: white
+            }
+
+        .tabContent {
+            display: none;
+            border: 1px solid #ddd;
+            padding: 15px;
+            border-radius: 0 8px 8px 8px
+        }
+
+            .tabContent.active {
+                display: block
+            }
+
+        select, input, button {
+            padding: 10px;
+            margin: 5px;
+            border-radius: 8px;
+            border: 1px solid #ccc;
+            width: 100%;
+            box-sizing: border-box
+        }
+
+        button {
+            background: #0d6efd;
+            color: white;
+            border: none;
+            font-weight: bold;
+            cursor: pointer
+        }
+
+        table {
+            width: 100%;
+            margin-top: 10px;
+            border-collapse: collapse;
+            font-size: 13px
+        }
+
+        th, td {
+            border: 1px solid #ddd;
+            padding: 7px
+        }
+
+        th {
+            background: #0d6efd;
+            color: white
+        }
+
+        #idBox {
+            border: 2px dashed #0d6efd;
+            padding: 10px;
+            border-radius: 8px;
+            margin: 10px 0;
+            background: #f0f6ff;
+            display: none
+        }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <h2>Digicall Finance Module - SQL Server + JOIN Reports</h2>
+        <button class="tab active" onclick="openTab(event,'manage')">Manage (SQL Server)</button>
+        <button class="tab" onclick="openTab(event,'reports')">Reports (JOINs)</button>
+
+        <div id="manage" class="tabContent active">
+            <div style="display:flex;gap:10px">
+                <select id="module" onchange="load()"><option value="Clients">Clients</option><option value="Invoices">Invoices</option><option value="Claims">Claims</option></select>
+                <select id="op" onchange="onOp()"><option value="insert">INSERT (ID auto from SQL)</option><option value="edit">EDIT (pick ID)</option><option value="delete">DELETE (pick ID)</option></select>
+            </div>
+            <div id="idBox"><label><b>Choose Existing ID - from SQL Server</b></label><select id="IdSelect" onchange="fill()"></select></div>
+            <div id="form"></div>
+            <button id="btn" onclick="exec()">INSERT New Record</button><button onclick="load()" style="background:#198754">Refresh from SQL Server</button>
+            <table id="tbl"><thead><tr id="head"></tr></thead><tbody></tbody></table>
+        </div>
+
+        <div id="reports" class="tabContent">
+            <button onclick="loadRep()" style="background:#6f42c1">Load JOIN Reports from SQL Server</button>
+            <h3>1. Finance Summary - JOIN + GROUP BY</h3><table id="s1"><thead><tr><th>Client</th><th>Company</th><th>Total Invoices</th><th>Total Claims</th><th>Balance</th></tr></thead><tbody></tbody></table>
+            <h3>2. Invoices + Client Name (INNER JOIN)</h3><table id="s2"><thead><tr><th>Invoice</th><th>Client</th><th>Amount</th><th>Status</th></tr></thead><tbody></tbody></table>
+            <h3>3. Claims + Client Name (INNER JOIN)</h3><table id="s3"><thead><tr><th>Client</th><th>Description</th><th>Amount</th><th>Status</th></tr></thead><tbody></tbody></table>
+        </div>
+    </div>
+    <script>
+const API=location.origin;let all=[];let clients=[];
+function openTab(e,n){document.querySelectorAll('.tab').forEach(b=>b.classList.remove('active'));document.querySelectorAll('.tabContent').forEach(d=>d.classList.remove('active'));document.getElementById(n).classList.add('active');e.target.classList.add('active');if(n=='reports')loadRep();}
+async function getClients(){clients=await (await fetch(`${API}/api/Clients`)).json();}
+function clientSel(v=1){if(!clients.length) return `<select id="ClientId"><option value="1">Add Client first</option></select>`;let o=clients.map(c=>`<option value="${c.id}" ${c.id==v?'selected':''}>${c.id} - ${c.name} (${c.company})</option>`).join('');return `<label>ClientId (FK - SQL Server)</label><select id="ClientId">${o}</select>`;}
+function onOp(){let op=document.getElementById('op').value;let b=document.getElementById('idBox');let btn=document.getElementById('btn');if(op=='insert'){b.style.display='none';btn.textContent='INSERT New Record';btn.style.background='#0d6efd';}else if(op=='edit'){b.style.display='block';btn.textContent='UPDATE Selected ID';btn.style.background='#fd7e14';}else{b.style.display='block';btn.textContent='DELETE Selected ID';btn.style.background='#dc3545';}build();}
+function build(){let m=document.getElementById('module').value;let d=document.getElementById('form');if(m=='Clients')d.innerHTML=`<label>Name</label><input id="F1" placeholder="John Doe"><label>Email</label><input id="F2" placeholder="john@digicall.com"><div style="display:flex;gap:8px"><div style="flex:1"><label>Phone</label><input id="F3"></div><div style="flex:1"><label>Company</label><input id="F4"></div></div>`;else if(m=='Invoices')d.innerHTML=`${clientSel()}<div style="display:flex;gap:8px"><div style="flex:1"><label>InvoiceNumber</label><input id="F1" placeholder="INV-001"></div><div style="flex:1"><label>Amount</label><input id="F2" type="number"></div></div><div style="display:flex;gap:8px"><div style="flex:1"><label>Status</label><select id="F3"><option>Pending</option><option>Paid</option><option>Overdue</option></select></div><div style="flex:1"><label>DueDate</label><input id="F4" type="date"></div></div>`;else d.innerHTML=`${clientSel()}<label>Description</label><input id="F1" placeholder="Accident"><div style="display:flex;gap:8px"><div style="flex:1"><label>ClaimAmount</label><input id="F2" type="number"></div><div style="flex:1"><label>Status</label><select id="F3"><option>Submitted</option><option>Approved</option><option>Rejected</option></select></div></div>`;}
+async function load(){await getClients();let m=document.getElementById('module').value;let r=await fetch(`${API}/api/${m}`);all=await r.json();let s=document.getElementById('IdSelect');s.innerHTML='';if(!all.length)s.innerHTML='<option>No records - INSERT first</option>';else all.forEach(x=>{let lab=m=='Clients'?`${x.id} - ${x.name} | ${x.email}`:m=='Invoices'?`${x.id} - ${x.invoiceNumber} | R${x.amount}`:`${x.id} - ${x.description} | R${x.claimAmount}`;s.innerHTML+=`<option value="${x.id}">${lab}</option>`;});let h=document.getElementById('head');if(m=='Clients')h.innerHTML='<th>ID (SQL Identity)</th><th>Name</th><th>Email</th><th>Phone</th><th>Company</th>';else if(m=='Invoices')h.innerHTML='<th>ID</th><th>InvoiceNumber</th><th>ClientId (FK)</th><th>Amount</th><th>Status</th>';else h.innerHTML='<th>ID</th><th>ClientId (FK)</th><th>Description</th><th>Amount</th><th>Status</th>';let tb=document.querySelector('#tbl tbody');tb.innerHTML='';all.forEach(x=>{let row=m=='Clients'?`<td>${x.id}</td><td>${x.name}</td><td>${x.email}</td><td>${x.phone}</td><td>${x.company}</td>`:m=='Invoices'?`<td>${x.id}</td><td>${x.invoiceNumber}</td><td>${x.clientId}</td><td>R${x.amount}</td><td>${x.status}</td>`:`<td>${x.id}</td><td>${x.clientId}</td><td>${x.description}</td><td>R${x.claimAmount}</td><td>${x.status}</td>`;tb.innerHTML+=`<tr>${row}</tr>`;});build();onOp();}
+function fill(){if(document.getElementById('op').value!='edit')return;let id=parseInt(document.getElementById('IdSelect').value);let rec=all.find(x=>x.id==id);if(!rec)return;let m=document.getElementById('module').value;if(m=='Clients'){F1.value=rec.name;F2.value=rec.email;F3.value=rec.phone;F4.value=rec.company;}else if(m=='Invoices'){document.getElementById('ClientId').value=rec.clientId;F1.value=rec.invoiceNumber;F2.value=rec.amount;F3.value=rec.status;}else{document.getElementById('ClientId').value=rec.clientId;F1.value=rec.description;F2.value=rec.claimAmount;F3.value=rec.status;}}
+async function exec(){let m=document.getElementById('module').value;let op=document.getElementById('op').value;let id=op=='insert'?0:parseInt(document.getElementById('IdSelect').value);if(op!='insert'&&!id){alert('Pick ID from dropdown');return;}let f1=document.getElementById('F1')?.value||'';let f2=document.getElementById('F2')?.value||'';let f3=document.getElementById('F3')?.value||'';let f4=document.getElementById('F4')?.value||'';let cId=document.getElementById('ClientId')?parseInt(document.getElementById('ClientId').value):1;let body=null;if(m=='Clients')body={id,name:f1,email:f2,phone:f3,company:f4};if(m=='Invoices')body={id,clientId:cId,invoiceNumber:f1,amount:parseFloat(f2)||0,status:f3,dueDate:f4?new Date(f4):new Date()};if(m=='Claims')body={id,clientId:cId,description:f1,claimAmount:parseFloat(f2)||0,status:f3,dateSubmitted:new Date()};let url=`${API}/api/${m}`;let method='POST';if(op=='edit'){url+=`/${id}`;method='PUT';}if(op=='delete'){url+=`/${id}`;method='DELETE';body=null;}let res=await fetch(url,{method,headers:{'Content-Type':'application/json'},body:body?JSON.stringify(body):null});if(!res.ok){alert('Failed');return;}alert(op.toUpperCase()+' OK - SQL Server');load();}
+async function loadRep(){let s=await (await fetch(`${API}/api/Reports/summary`)).json();document.querySelector('#s1 tbody').innerHTML=s.map(x=>`<tr><td>${x.clientName}</td><td>${x.company}</td><td>R${x.totalInvoices} (${x.invoiceCount})</td><td>R${x.totalClaims} (${x.claimCount})</td><td style="font-weight:bold;color:${x.balance>=0?'green':'red'}">R${x.balance}</td></tr>`).join('');let inv=await (await fetch(`${API}/api/Reports/invoices`)).json();document.querySelector('#s2 tbody').innerHTML=inv.map(x=>`<tr><td>${x.invoiceNumber}</td><td>${x.clientName} (${x.company})</td><td>R${x.amount}</td><td>${x.status}</td></tr>`).join('');let cl=await (await fetch(`${API}/api/Reports/claims`)).json();document.querySelector('#s3 tbody').innerHTML=cl.map(x=>`<tr><td>${x.clientName}</td><td>${x.description}</td><td>R${x.claimAmount}</td><td>${x.status}</td></tr>`).join('');}
+load();
+    </script>
+</body>
+</html>
